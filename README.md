@@ -1,5 +1,7 @@
 # Sada Artifact Registry bootstrap
 
+This feature branch adds GitHub Actions automation for provisioning and publishing to Google Artifact Registry.
+
 This repository is prepared for a GitHub Actions setup that:
 
 - provisions a Google Artifact Registry repository in the `sada-seed-2025-sandbox` project using Terraform

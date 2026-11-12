@@ -1,0 +1,56 @@
+name: Build and Push Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to push
+        required: false
+        default: latest
+        type: string
+      dockerfile:
+        description: Path to the Dockerfile
+        required: false
+        default: ./Dockerfile
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: sada-seed-2025-sandbox
+  REGION: us-central1
+  REPOSITORY: sada-docker
+  IMAGE_NAME: sada-app
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        # Required IAM condition should include the GitHub identity used for the OIDC assertion:
+        # attribute.actor == "sponnur1"
+        # attribute.repository_owner == "sadasystems"
+        # attribute.repository == "sadasystems/<your-repo-name>"
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build Docker image
+        run: |
+          IMAGE_URI="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}"
+          TAG="${{ inputs.image_tag }}"
+          docker build -f "${{ inputs.dockerfile }}" -t "$IMAGE_URI:$TAG" -t "$IMAGE_URI:latest" .
+          docker push "$IMAGE_URI:$TAG"
+          docker push "$IMAGE_URI:latest"
